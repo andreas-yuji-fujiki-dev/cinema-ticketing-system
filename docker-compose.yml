@@ -15,7 +15,7 @@ services:
       - postgres
       - redis
       - rabbitmq
-    command: npm run start:dev
+    command: sh -c "npx prisma generate && npm run start:dev"
 
   postgres:
     container_name: cinema_postgres
