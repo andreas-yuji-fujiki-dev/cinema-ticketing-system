@@ -8,6 +8,8 @@ services:
       - "3000:3000"
     env_file:
       - .env
+    environment:
+      NODE_ENV: development
     volumes:
       - ./cinema-api:/app
       - /app/node_modules
@@ -15,7 +17,6 @@ services:
       - postgres
       - redis
       - rabbitmq
-    command: sh -c "npx prisma generate && npm run start:dev"
 
   postgres:
     container_name: cinema_postgres
