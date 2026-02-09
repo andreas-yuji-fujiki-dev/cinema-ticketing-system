@@ -44,15 +44,18 @@ model Seat {
 }
 
 model Reservation {
-  id        String   @id @default(uuid())
+  id        String             @id @default(uuid())
   userId    String
   sessionId String
   expiresAt DateTime
-  createdAt DateTime @default(now())
+  status    ReservationStatus  @default(ACTIVE)
+  createdAt DateTime           @default(now())
 
   user    User    @relation(fields: [userId], references: [id])
   session Session @relation(fields: [sessionId], references: [id])
   seats   ReservationSeat[]
+
+  @@index([status, expiresAt])
 }
 
 model ReservationSeat {
@@ -84,4 +87,10 @@ model SaleSeat {
   seat Seat @relation(fields: [seatId], references: [id])
 
   @@id([saleId, seatId])
+}
+
+enum ReservationStatus {
+  ACTIVE
+  EXPIRED
+  CONFIRMED
 }

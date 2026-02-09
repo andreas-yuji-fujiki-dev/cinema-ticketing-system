@@ -8,11 +8,11 @@ done
 
 echo "Postgres is up"
 
-echo "Running migrations..."
+echo "Running Prisma migrations..."
 npx prisma migrate deploy
 
 echo "Running seed..."
-npx prisma db seed
+npx prisma db seed || echo "Seed skipped"
 
 echo "Starting API..."
 npm run start:dev

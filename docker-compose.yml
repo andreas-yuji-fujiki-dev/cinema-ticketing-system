@@ -18,6 +18,16 @@ services:
       - redis
       - rabbitmq
 
+  worker:
+    container_name: cinema_worker
+    build:
+      context: ./cinema-api
+    command: npm run worker
+    env_file:
+      - .env
+    depends_on:
+      - postgres
+
   postgres:
     container_name: cinema_postgres
     image: postgres:16

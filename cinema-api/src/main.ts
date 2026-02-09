@@ -8,14 +8,12 @@ async function bootstrap() {
   const port = process.env.API_PORT || 3000
   await app.listen(port)
 
-  // success bootstrap log message
   console.log(`
 
-
-    API running on localhost:${port}
+    API running on http://localhost:${port}
     Happiness! =)
   
-
-  `)
+    `)
 }
+
 bootstrap()

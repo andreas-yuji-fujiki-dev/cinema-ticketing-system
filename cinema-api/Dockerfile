@@ -2,7 +2,6 @@ FROM node:20-bookworm
 
 WORKDIR /app
 
-# required dependencies
 RUN apt-get update && apt-get install -y \
   openssl \
   libssl3 \

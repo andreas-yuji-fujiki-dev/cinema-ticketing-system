@@ -1,6 +1,7 @@
 import { Injectable, ConflictException } from '@nestjs/common'
 import { PrismaService } from 'src/infra/database/prisma.service'
 import { CreateReservationDto } from './dto/create-reservation.dto'
+import { ReservationStatus } from '@prisma/client';
 
 @Injectable()
 export class ReservationsService {
@@ -25,8 +26,9 @@ export class ReservationsService {
         where: {
           seatId: { in: dto.seatIds },
           reservation: {
+            status: ReservationStatus.ACTIVE,
             expiresAt: { gt: new Date() },
-          },
+          }
         },
       })
 
@@ -39,7 +41,7 @@ export class ReservationsService {
         data: {
           userId: dto.userId,
           sessionId: dto.sessionId,
-          expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+          expiresAt: new Date(Date.now() + 30 * 1000),
         },
       })
 
