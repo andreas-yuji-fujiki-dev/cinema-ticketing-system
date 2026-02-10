@@ -1,12 +1,19 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { PrismaService } from 'src/infra/database/prisma.service'
 import { ReservationStatus } from '@prisma/client'
+import { RedisService } from 'src/infra/cache/redis.service'
 
 @Injectable()
 export class ReservationExpirationWorker {
   private readonly logger = new Logger(ReservationExpirationWorker.name)
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly redis: RedisService,
+  ) {
+    const client = this.redis.getClient()
+    this.logger.log(`Redis client status: ${client.status || 'unknown'}`)
+  }
 
   async run() {
     const now = new Date()
@@ -47,8 +54,7 @@ export class ReservationExpirationWorker {
           status: ReservationStatus.EXPIRED,
         },
       })
-
-      // idempotência total
+      
       if (updated.count === 0) return
 
       await tx.reservationSeat.deleteMany({

@@ -1,53 +1,65 @@
 import { Injectable, ConflictException } from '@nestjs/common'
 import { PrismaService } from 'src/infra/database/prisma.service'
+import { RedisService } from 'src/infra/cache/redis.service'
 import { CreateReservationDto } from './dto/create-reservation.dto'
-import { ReservationStatus } from '@prisma/client';
 
 @Injectable()
 export class ReservationsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private redisService: RedisService,
+  ) {}
 
   async create(dto: CreateReservationDto) {
-    return this.prisma.$transaction(async (tx) => {
+    const TTL = 30
 
-      // seats lock
-      await tx.$queryRawUnsafe(
-        `
-        SELECT id
-        FROM "Seat"
-        WHERE id = ANY($1::text[])
-        FOR UPDATE
-        `,
-        dto.seatIds
-      )
+    // order to avoid deadlock
+    const seatIds = [...dto.seatIds].sort()
 
-      // already booked?
-      const exists = await tx.reservationSeat.findFirst({
-        where: {
-          seatId: { in: dto.seatIds },
-          reservation: {
-            status: ReservationStatus.ACTIVE,
-            expiresAt: { gt: new Date() },
-          }
-        },
-      })
+    // check if seats have already been sold
+    const soldSeats = await this.prisma.saleSeat.findMany({
+      where: { seatId: { in: seatIds } },
+    })
 
-      if (exists) {
-        throw new ConflictException('Seat already reserved')
+    if (soldSeats.length > 0) {
+      throw new ConflictException('One or more seats have already been sold')
+    }
+
+    // check if seats already have active reservations
+    const activeReservations = await this.prisma.reservationSeat.findMany({
+      where: {
+        seatId: { in: seatIds },
+        reservation: { status: 'ACTIVE' },
+      },
+    })
+
+    if (activeReservations.length > 0) {
+      throw new ConflictException('One or more seats already have active reservations')
+    }
+
+    // try creating locks in Redis
+    for (const seatId of seatIds) {
+      const lockKey = `lock:session:${dto.sessionId}:seat:${seatId}`
+
+      const locked = await this.redisService.set(lockKey, 'locked', TTL)
+
+      if (!locked) {
+        throw new ConflictException('Seat already locked')
       }
+    }
 
-      // create reservation
+    // create bank reserve 
+    return this.prisma.$transaction(async (tx) => {
       const reservation = await tx.reservation.create({
         data: {
           userId: dto.userId,
           sessionId: dto.sessionId,
-          expiresAt: new Date(Date.now() + 30 * 1000),
+          expiresAt: new Date(Date.now() + TTL * 1000),
         },
       })
 
-      // link seats
       await tx.reservationSeat.createMany({
-        data: dto.seatIds.map((seatId) => ({
+        data: seatIds.map((seatId) => ({
           reservationId: reservation.id,
           seatId,
         })),

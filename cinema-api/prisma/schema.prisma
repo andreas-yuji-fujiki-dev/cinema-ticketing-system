@@ -87,6 +87,7 @@ model SaleSeat {
   seat Seat @relation(fields: [seatId], references: [id])
 
   @@id([saleId, seatId])
+  @@unique([seatId])
 }
 
 enum ReservationStatus {
