@@ -1,4 +1,4 @@
-# Cinema Ticketing System — Avaliação do Teste Técnico
+# Cinema Ticketing System — Teste Técnico
 
 ## Visão Geral
 
