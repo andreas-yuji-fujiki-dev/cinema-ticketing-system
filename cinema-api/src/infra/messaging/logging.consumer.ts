@@ -1,9 +1,10 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
-import { MessagingService } from './messaging.service'
+import { Injectable, OnModuleInit } from '@nestjs/common';
+import { MessagingService } from './messaging.service';
+import { getLogger } from 'src/infra/logging/logger';
 
 @Injectable()
 export class LoggingConsumer implements OnModuleInit {
-  private readonly logger = new Logger(LoggingConsumer.name)
+  private readonly logger = getLogger(LoggingConsumer.name);
 
   constructor(private readonly messaging: MessagingService) {}
 
@@ -13,10 +14,10 @@ export class LoggingConsumer implements OnModuleInit {
       'RESERVATION_EXPIRED',
       'PAYMENT_CONFIRMED',
       'SEAT_RELEASED',
-    ]
+    ];
 
-    this.messaging.registerConsumer('logging.queue', events, (payload) => {
-      this.logger.log(`${JSON.stringify(payload)}`)
-    })
+    void this.messaging.registerConsumer('logging.queue', events, payload => {
+      this.logger.info('event', { payload });
+    });
   }
 }

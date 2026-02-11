@@ -1,5 +1,5 @@
-import { Controller, Get, Param } from '@nestjs/common'
-import { SessionsService } from './sessions.service'
+import { Controller, Get, Param } from '@nestjs/common';
+import { SessionsService } from './sessions.service';
 
 @Controller('sessions')
 export class SessionsController {
@@ -7,6 +7,6 @@ export class SessionsController {
 
   @Get(':id/seats')
   async getSeatsAvailability(@Param('id') sessionId: string) {
-    return this.sessionsService.getSeatsAvailability(sessionId)
+    return this.sessionsService.getSeatsAvailability(sessionId);
   }
 }

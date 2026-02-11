@@ -1,149 +1,155 @@
-import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common'
-import * as amqplib from 'amqplib'
+import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import * as amqplib from 'amqplib';
+import { getLogger } from 'src/infra/logging/logger';
 
 @Injectable()
 export class MessagingService implements OnModuleInit, OnModuleDestroy {
-  private readonly logger = new Logger(MessagingService.name)
-  private connection: amqplib.Connection | null = null
-  private channel: amqplib.Channel | null = null
-  private ready: Promise<void>
-  private readyResolve!: () => void
+  private readonly logger = getLogger(MessagingService.name);
+  private connection: amqplib.Connection | null = null;
+  private channel: amqplib.Channel | null = null;
+  private ready: Promise<void>;
+  private readyResolve!: () => void;
 
   constructor() {
-    this.ready = new Promise((res) => (this.readyResolve = res))
+    this.ready = new Promise(res => (this.readyResolve = res));
   }
 
   async onModuleInit() {
-    const url = process.env.RABBITMQ_URL || `amqp://${process.env.RABBITMQ_USER || 'guest'}:${process.env.RABBITMQ_PASSWORD || 'guest'}@${process.env.RABBITMQ_HOST || 'rabbitmq'}:${process.env.RABBITMQ_PORT || 5672}`
+    const url =
+      process.env.RABBITMQ_URL ||
+      `amqp://${process.env.RABBITMQ_USER || 'guest'}:${process.env.RABBITMQ_PASSWORD || 'guest'}@${process.env.RABBITMQ_HOST || 'rabbitmq'}:${process.env.RABBITMQ_PORT || 5672}`;
 
-    const delay = (ms: number) => new Promise((r) => setTimeout(r, ms))
+    const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
 
-    let attempt = 0
+    let attempt = 0;
     while (true) {
-      attempt++
+      attempt++;
       try {
-        this.connection = await amqplib.connect(url)
-        this.channel = await this.connection.createChannel()
-        await this.channel.assertExchange('events', 'topic', { durable: true })
+        this.connection = await amqplib.connect(url);
+        this.channel = await this.connection.createChannel();
+        await this.channel.assertExchange('events', 'topic', { durable: true });
 
-        this.logger.log('Connected to RabbitMQ')
+        this.logger.info('Connected to RabbitMQ');
 
         // resolve ready so consumers can register
-        this.readyResolve()
+        this.readyResolve();
 
         // attach basic error/close logging
-        this.connection.on('error', (err) => this.logger.error(`RabbitMQ connection error: ${err}`))
-        
-        this.connection.on('close', async () => {
+        this.connection.on('error', err => this.logger.error(`RabbitMQ connection error: ${err}`));
 
-          this.logger.warn('RabbitMQ connection closed')
-          
+        this.connection.on('close', () => {
+          this.logger.warn('RabbitMQ connection closed');
+
           // try to reconnect in background
-          attempt = 0
-          
+          attempt = 0;
+
           // create a new ready promise so registerConsumer waits if reconnect happens before app restarts
-          this.ready = new Promise((res) => (this.readyResolve = res))
-          
+          this.ready = new Promise(res => (this.readyResolve = res));
+
           // start reconnect loop
-          ;(async () => {
+          (async () => {
             while (true) {
               try {
-                this.connection = await amqplib.connect(url)
-                this.channel = await this.connection.createChannel()
-                await this.channel.assertExchange('events', 'topic', { durable: true })
-                this.logger.log('Reconnected to RabbitMQ')
-                this.readyResolve()
-                break
+                this.connection = await amqplib.connect(url);
+                this.channel = await this.connection.createChannel();
+                await this.channel.assertExchange('events', 'topic', { durable: true });
+                this.logger.info('Reconnected to RabbitMQ');
+                this.readyResolve();
+                break;
               } catch (e) {
-                this.logger.warn(`Reconnect attempt failed: ${e}`)
-                await delay(2000)
+                this.logger.warn(`Reconnect attempt failed: ${e}`);
+                await delay(2000);
               }
             }
-          })()
-        })
+          })();
+        });
 
-        break
+        break;
       } catch (err) {
-        const wait = Math.min(5000, 500 * attempt)
-        this.logger.warn(`Failed to connect to RabbitMQ (attempt ${attempt}), retrying in ${wait}ms: ${err}`)
-        await delay(wait)
+        const wait = Math.min(5000, 500 * attempt);
+        this.logger.warn(
+          `Failed to connect to RabbitMQ (attempt ${attempt}), retrying in ${wait}ms: ${err}`
+        );
+        await delay(wait);
       }
     }
   }
 
   async publish(event: string, payload: any) {
-    await this.ready
+    await this.ready;
     if (!this.channel) {
-      this.logger.warn('No channel available to publish event')
-      return
+      this.logger.warn('No channel available to publish event');
+      return;
     }
 
     try {
-      const content = Buffer.from(JSON.stringify(payload || {}))
+      const content = Buffer.from(JSON.stringify(payload || {}));
       // ensure exchange exists and is durable
-      await this.channel.assertExchange('events', 'topic', { durable: true })
-      this.channel.publish('events', event, content)
-      this.logger.log(`Published event ${event}`)
+      await this.channel.assertExchange('events', 'topic', { durable: true });
+      this.channel.publish('events', event, content);
+      this.logger.info(`Published event ${event}`);
     } catch (err) {
-      this.logger.error(`Publish failed for ${event}: ${err}`)
+      this.logger.error(`Publish failed for ${event}: ${err}`);
     }
   }
 
-   /**
+  /**
    * Register a named, durable queue and bind it to the list of routing keys (events).
    * Each consumer should call this in their onModuleInit.
    */
   async registerConsumer(
     queueName: string,
     events: string[],
-    handler: (payload: any) => Promise<void> | void,
+    handler: (payload: any) => Promise<void> | void
   ) {
-    await this.ready
+    await this.ready;
     if (!this.channel) {
-      this.logger.warn('No channel available to register consumer')
-      return
+      this.logger.warn('No channel available to register consumer');
+      return;
     }
 
     // ensure exchange exists and is durable
-    await this.channel.assertExchange('events', 'topic', { durable: true })
+    await this.channel.assertExchange('events', 'topic', { durable: true });
 
     // create a durable, named queue that survives restarts
-    await this.channel.assertQueue(queueName, { durable: true })
+    await this.channel.assertQueue(queueName, { durable: true });
 
     for (const event of events) {
-      await this.channel.bindQueue(queueName, 'events', event)
+      await this.channel.bindQueue(queueName, 'events', event);
     }
 
     await this.channel.consume(
       queueName,
-      async (msg) => {
-        if (!msg) return
+      msg => {
+        void (async () => {
+          if (!msg) return;
 
-        try {
-          const payload = JSON.parse(msg.content.toString())
-          await Promise.resolve(handler(payload))
-        } catch (err) {
-          this.logger.error(`Failed handling message on ${queueName}: ${err}`)
-        } finally {
           try {
-            this.channel?.ack(msg)
-          } catch (ackErr) {
-            this.logger.error(`Failed ack message on ${queueName}: ${ackErr}`)
+            const payload = JSON.parse(msg.content.toString());
+            await Promise.resolve(handler(payload));
+          } catch (err) {
+            this.logger.error(`Failed handling message on ${queueName}: ${err}`);
+          } finally {
+            try {
+              this.channel?.ack(msg);
+            } catch (ackErr) {
+              this.logger.error(`Failed ack message on ${queueName}: ${ackErr}`);
+            }
           }
-        }
+        })();
       },
-      { noAck: false },
-    )
+      { noAck: false }
+    );
 
-    this.logger.log(`Registered consumer queue ${queueName} for events: ${events.join(',')}`)
+    this.logger.info(`Registered consumer queue ${queueName} for events: ${events.join(',')}`);
   }
 
   async onModuleDestroy() {
     try {
-      await this.channel?.close()
-      await this.connection?.close()
+      await this.channel?.close();
+      await this.connection?.close();
     } catch (err) {
-      // ignore
+      this.logger.error(`Error closing RabbitMQ connection: ${err}`);
     }
   }
 }

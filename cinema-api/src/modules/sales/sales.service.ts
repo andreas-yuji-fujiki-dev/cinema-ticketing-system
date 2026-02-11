@@ -1,5 +1,5 @@
-import { Injectable } from '@nestjs/common'
-import { PrismaService } from 'src/infra/database/prisma.service'
+import { Injectable } from '@nestjs/common';
+import { PrismaService } from 'src/infra/database/prisma.service';
 
 @Injectable()
 export class SalesService {
@@ -19,12 +19,12 @@ export class SalesService {
       orderBy: {
         createdAt: 'desc',
       },
-    })
+    });
 
     return {
       userId,
       total: sales.length,
       sales,
-    }
+    };
   }
 }

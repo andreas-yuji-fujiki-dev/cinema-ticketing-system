@@ -1,6 +1,9 @@
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient } from '@prisma/client';
+import { getLogger } from '../src/infra/logging/logger';
 
-const prisma = new PrismaClient()
+const logger = getLogger('Seed');
+
+const prisma = new PrismaClient();
 
 async function main() {
   // user base
@@ -11,7 +14,7 @@ async function main() {
       id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
       email: 'user@test.com',
     },
-  })
+  });
 
   // session base
   await prisma.session.upsert({
@@ -24,7 +27,7 @@ async function main() {
       startsAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
       price: 10.5,
     },
-  })
+  });
 
   // seats base
   await prisma.seat.createMany({
@@ -34,13 +37,13 @@ async function main() {
       { id: 'seat-3', number: 3, sessionId: 'session-1' },
     ],
     skipDuplicates: true,
-  })
+  });
 }
 
 main()
   .then(() => {
-    console.log('Seed executado com sucesso')
+    logger.info('Seed executado com sucesso');
   })
   .finally(async () => {
-    await prisma.$disconnect()
-  })
+    await prisma.$disconnect();
+  });

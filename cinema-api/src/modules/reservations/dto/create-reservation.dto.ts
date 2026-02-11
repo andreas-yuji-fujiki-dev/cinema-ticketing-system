@@ -1,13 +1,13 @@
-import { IsArray, IsUUID, ArrayMinSize } from 'class-validator'
+import { IsArray, IsUUID, ArrayMinSize } from 'class-validator';
 
 export class CreateReservationDto {
   @IsUUID()
-  sessionId: string
+  sessionId: string;
 
   @IsUUID()
-  userId: string
+  userId: string;
 
   @IsArray()
   @ArrayMinSize(1)
-  seatIds: string[]
+  seatIds: string[];
 }

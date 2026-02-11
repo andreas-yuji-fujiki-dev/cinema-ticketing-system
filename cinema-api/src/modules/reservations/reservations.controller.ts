@@ -1,6 +1,6 @@
-import { Body, Controller, Post } from '@nestjs/common'
-import { ReservationsService } from './reservations.service'
-import { CreateReservationDto } from './dto/create-reservation.dto'
+import { Body, Controller, Post } from '@nestjs/common';
+import { ReservationsService } from './reservations.service';
+import { CreateReservationDto } from './dto/create-reservation.dto';
 
 @Controller('reservations')
 export class ReservationsController {
@@ -8,6 +8,6 @@ export class ReservationsController {
 
   @Post()
   create(@Body() dto: CreateReservationDto) {
-    return this.reservationsService.create(dto)
+    return this.reservationsService.create(dto);
   }
 }
