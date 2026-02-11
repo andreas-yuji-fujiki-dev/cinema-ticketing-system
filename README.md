@@ -13,10 +13,10 @@ Resumo rápido:
 
 ## Clone e configuração rápida
 
-1. Clone o repositório:
+1. Clone o repositório e entre na pasta:
 
 ```bash
-git clone <SEU_FORK_URL> cinema-ticketing-system
+git clone https://github.com/andreas-yuji-fujiki-dev/cinema-ticketing-system.git
 cd cinema-ticketing-system
 ```
 
@@ -28,29 +28,13 @@ cp .env.example .env
 Copy-Item .env.example .env
 ```
 
-Verifique as variáveis no `.env` (as mesmas chaves do `.env.example`) e atualize credenciais se necessário. O `.env.example` contém valores prontos para o ambiente Docker usado pelo `docker compose`.
-
-3. Subir o ambiente com Docker Compose:
+3. Subir o ambiente (Docker Compose):
 
 ```bash
 docker compose up --build
 ```
 
-4. Rodar migrations e seed (dentro do container `api` ou localmente em `cinema-api`):
-
-```bash
-# dentro da pasta cinema-api (local)
-npx prisma migrate deploy
-npx prisma db seed
-```
-
-Se preferir executar dentro do container em execução:
-
-```bash
-docker compose exec api sh -c "npx prisma migrate deploy && npx prisma db seed"
-```
-
-Observação: o projeto já inclui um `prisma/seed.ts` que cria um usuário (`f47ac10b-...`) e uma sessão (`session-1`) — a seed agora cria 16 assentos para facilitar testes de concorrência.
+Observação: o container `api` aplica migrations e executa o seed automaticamente durante o boot (veja `cinema-api/docker/entrypoint.sh`).
 
 ## Tecnologias escolhidas
 
@@ -76,16 +60,16 @@ docker compose up --build
 
 O compose já orquestra os serviços necessários: `api` (NestJS), `worker`, `postgres`, `redis`, `rabbitmq`.
 
-Populando dados iniciais (seed):
+Populando dados iniciais (seed)
 
-Dentro do container `api` (ou localmente em `cinema-api`), execute:
+Ao usar `docker compose up --build` o container `api` aplica automaticamente as migrations e executa o seed durante o boot (veja `cinema-api/docker/entrypoint.sh`).
+
+Se preferir executar manualmente (por exemplo para desenvolvimento local), rode na pasta `cinema-api`:
 
 ```bash
-# se estiver na máquina local, na pasta cinema-api
-npm run prisma -- migrate deploy || npx prisma migrate deploy
-npm run prisma -- db seed || npm run prisma -- db seed || npx prisma db seed
-# ou (diretamente via package.json prisma.seed):
-npm run prisma:seed || npx prisma db seed
+# dentro da pasta cinema-api (local)
+npx prisma migrate deploy
+npx prisma db seed
 ```
 
 ## Endpoints principais
@@ -249,14 +233,3 @@ npm run test:e2e -- test/concurrency.e2e-spec.ts
 O teste fará uma checagem rápida de disponibilidade do endpoint antes de tentar as requisições e imprimirá um resumo com quantas requisições tiveram sucesso e quantas retornaram `409 Conflict`.
 
 Observação: o teste é um teste de integração e requer que os serviços (Postgres, Redis, RabbitMQ) estejam acessíveis conforme configurado no `.env`/`.env.example`.
-
----
-
-Se quiser, eu posso:
-
-- expandir a `seed` para criar outras sessões;
-- adicionar endpoints para criar sessões/assentos;
-- adicionar testes que simulem 10 usuários concorrentes tentando reservar os mesmos 2 assentos em múltiplas sessões;
-- configurar Swagger e scripts de CI.
-
-Diga qual próximo passo prefere que eu implemente.
