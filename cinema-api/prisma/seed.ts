@@ -16,6 +16,17 @@ async function main() {
     },
   });
 
+  // create 10 concurrent test users (used by concurrency e2e test)
+  const concurrentUsers = Array.from({ length: 10 }, (_, i) => ({
+    id: `concurrent-user-${i + 1}`,
+    email: `concurrent${i + 1}@test.local`,
+  }));
+
+  await prisma.user.createMany({
+    data: concurrentUsers,
+    skipDuplicates: true,
+  });
+
   // session base
   await prisma.session.upsert({
     where: { id: 'session-1' },
@@ -29,13 +40,15 @@ async function main() {
     },
   });
 
-  // seats base
+  // seats base — create 16 seats for the session
+  const seats = Array.from({ length: 16 }, (_, i) => ({
+    id: `seat-${i + 1}`,
+    number: i + 1,
+    sessionId: 'session-1',
+  }));
+
   await prisma.seat.createMany({
-    data: [
-      { id: 'seat-1', number: 1, sessionId: 'session-1' },
-      { id: 'seat-2', number: 2, sessionId: 'session-1' },
-      { id: 'seat-3', number: 3, sessionId: 'session-1' },
-    ],
+    data: seats,
     skipDuplicates: true,
   });
 }
