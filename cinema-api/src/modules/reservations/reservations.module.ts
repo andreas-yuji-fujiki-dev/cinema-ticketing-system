@@ -4,9 +4,10 @@ import { ReservationsController } from './reservations.controller'
 import { ReservationExpirationWorker } from './reservation-expiration.worker'
 import { PrismaService } from 'src/infra/database/prisma.service'
 import { CacheModule } from 'src/infra/cache/cache.module'
+import { MessagingModule } from 'src/infra/messaging/messaging.module'
 
 @Module({
-  imports: [CacheModule],
+  imports: [CacheModule, MessagingModule],
   controllers: [ReservationsController],
   providers: [
     ReservationsService,

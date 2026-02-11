@@ -28,6 +28,9 @@ services:
       - .env
     depends_on:
       - postgres
+      - redis
+      - rabbitmq
+    restart: unless-stopped
 
   postgres:
     container_name: cinema_postgres

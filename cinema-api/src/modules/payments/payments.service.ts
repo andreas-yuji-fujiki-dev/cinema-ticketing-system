@@ -1,6 +1,7 @@
 import { Injectable, BadRequestException } from '@nestjs/common'
 import { PrismaService } from 'src/infra/database/prisma.service'
 import { RedisService } from 'src/infra/cache/redis.service'
+import { MessagingService } from 'src/infra/messaging/messaging.service'
 import { ReservationStatus } from '@prisma/client'
 
 @Injectable()
@@ -8,6 +9,7 @@ export class PaymentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
+    private readonly messaging: MessagingService,
   ) {}
 
   async confirmPayment(reservationId: string) {
@@ -61,6 +63,26 @@ export class PaymentsService {
       for (const rs of reservation.seats) {
         const lockKey = `lock:session:${reservation.sessionId}:seat:${rs.seatId}`
         await this.redis.del(lockKey)
+      }
+
+      // publish payment confirmed event
+      try {
+        this.messaging.publish('PAYMENT_CONFIRMED', {
+          reservationId: reservation.id,
+          sessionId: reservation.sessionId,
+          seatIds: reservation.seats.map((s) => s.seatId),
+        })
+      } catch (err) {}
+
+      // publish seat released per-seat
+      for (const rs of reservation.seats) {
+        try {
+          this.messaging.publish('SEAT_RELEASED', {
+            reservationId: reservation.id,
+            sessionId: reservation.sessionId,
+            seatId: rs.seatId,
+          })
+        } catch (err) {}
       }
 
       return sale

@@ -1,6 +1,7 @@
 import { Injectable, ConflictException } from '@nestjs/common'
 import { PrismaService } from 'src/infra/database/prisma.service'
 import { RedisService } from 'src/infra/cache/redis.service'
+import { MessagingService } from 'src/infra/messaging/messaging.service'
 import { CreateReservationDto } from './dto/create-reservation.dto'
 
 @Injectable()
@@ -8,6 +9,7 @@ export class ReservationsService {
   constructor(
     private prisma: PrismaService,
     private redisService: RedisService,
+    private messaging: MessagingService,
   ) {}
 
   async create(dto: CreateReservationDto) {
@@ -65,7 +67,20 @@ export class ReservationsService {
         })),
       })
 
-      return reservation
+      const result = reservation
+
+      // publish event
+      try {
+        this.messaging.publish('RESERVATION_CREATED', {
+          reservationId: reservation.id,
+          sessionId: dto.sessionId,
+          seatIds,
+        })
+      } catch (err) {
+        // don't fail reservation if messaging fails
+      }
+
+      return result
     })
   }
 }
